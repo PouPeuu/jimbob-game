@@ -88,6 +88,13 @@ function RotatedTextureRect:render()
 	love.graphics.draw(self.l2dimage, x, y, self.r, self.w/iw, self.h/ih, iw / 2, ih / 2)
 end
 
+Bullet = RotatedTextureRect:new{
+	speed = 2000,
+	distance_traveled = 0,
+	max_distance_traveled = 3000
+}
+Bullet.__index = Bullet
+
 
 function randomFloat(min, max)
 	return min + math.random() * (max - min)
@@ -141,6 +148,8 @@ function love.load()
 	newMelon()
 
 	static_objects = {}
+
+	bullets = {}
 
 	seeds = 0
 
@@ -212,6 +221,15 @@ function love.update(dt)
 		shoot_sound:play()
 
 		seeds = seeds - 1
+
+		local mouse_x, mouse_y = love.mouse.getPosition()
+		local bullet = Bullet:fromImagePath("sedward.png")
+		bullet:centerToRect(player_texture)
+		bullet.follow_camera = false
+		bullet:mul(0.1)
+		bullet.r = math.atan2((bullet.y - (mouse_y - screen_h / 2 + camera_y)), (bullet.x - (mouse_x - screen_w / 2 + camera_x))) + math.pi
+
+		table.insert(bullets, bullet)
 	end
 
 	camera_x = player_x
@@ -231,6 +249,19 @@ function love.update(dt)
 			playChompSound()
 
 			seeds = seeds + math.random(2, 5)
+		end
+	end
+
+	for i, bullet in pairs(bullets) do
+		local old_x = bullet.x
+		local old_y = bullet.y
+		bullet.x = bullet.x + math.cos(bullet.r) * dt * bullet.speed
+		bullet.y = bullet.y + math.sin(bullet.r) * dt * bullet.speed
+
+		local dist = math.sqrt((bullet.x - old_x)^2 + (bullet.y - old_y)^2)
+		bullet.distance_traveled = bullet.distance_traveled + dist
+		if bullet.distance_traveled > bullet.max_distance_traveled then
+			table.remove(bullets, i)
 		end
 	end
 
@@ -269,6 +300,11 @@ function love.draw()
 		if melon:intersectsWithRect(player_texture) then
 			renderTextCentered("syö", screen_w / 2, screen_h / 2)
 		end
+	end
+
+	love.graphics.setColor(1, 1, 1)
+	for _, bullet in pairs(bullets) do
+		bullet:render()
 	end
 
 	love.graphics.setColor(0, 0, 0)
