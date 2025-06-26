@@ -95,6 +95,58 @@ Bullet = RotatedTextureRect:new{
 }
 Bullet.__index = Bullet
 
+Vector2 = Object:new{
+	x = 0,
+	y = 0
+}
+Vector2.__index = Vector2
+
+function Vector2.__add(a, b)
+	return Vector2:new{x = a.x + b.x, y = a.y + b.y}
+end
+
+function Vector2.__sub(a, b)
+	return Vector2:new{x = a.x - b.x, y = a.y - b.y}
+end
+
+function Vector2.__mul(a, b)
+	if type(b) == "table" then
+		return Vector2:new{x = a.x * b.x, y = a.y * b.y}
+	end
+	return Vector2:new{x = a.x * b, y = a.y * b}
+end
+
+function Vector2.__div(a, b)
+	if type(b) == "table" then
+		return Vector2:new{x = a.x / b.x, y = a.y / b.y}
+	end
+	return Vector2:new{x = a.x / b, y = a.y / b}
+end
+
+function Vector2.__unm(a)
+	return Vector2:new{x = -a.x, y = -a.y}
+end
+
+function Vector2:angleTo(other)
+	return math.atan(other.y - self.y, other.x - self.x)
+end
+
+function Vector2:distanceTo(other)
+	return 
+end
+
+function Vector2:getMagnitude()
+	return math.sqrt(self.x^2 + self.y^2)
+end
+
+Enemy = Object:new{
+	collider = Rect:new(),
+	texture = TextureRect:new(),
+	velocity = Vector2:new(),
+	acceleration = 100
+}
+Enemy.__index = Enemy
+
 
 function randomFloat(min, max)
 	return min + math.random() * (max - min)
