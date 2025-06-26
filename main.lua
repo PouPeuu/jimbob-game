@@ -127,25 +127,58 @@ function Vector2.__unm(a)
 	return Vector2:new{x = -a.x, y = -a.y}
 end
 
-function Vector2:angleTo(other)
-	return math.atan(other.y - self.y, other.x - self.x)
-end
-
-function Vector2:distanceTo(other)
-	return 
-end
-
 function Vector2:getMagnitude()
 	return math.sqrt(self.x^2 + self.y^2)
 end
 
+function Vector2:angleTo(other)
+	return math.atan(other.y - self.y, other.x - self.x)
+end
+
+function Vector2:directionTo(other)
+	local d = (other - self)
+	return d / d:getMagnitude()
+end
+
+function Vector2:distanceTo(other)
+	return (other - self):getMagnitude()
+end
+
 Enemy = Object:new{
-	collider = Rect:new(),
-	texture = TextureRect:new(),
+	collider = Rect:new{
+		x = 0,
+		y = 0,
+		w = 50,
+		h = 50
+	},
+	textures = {
+		up = {
+			love.graphics.newImage("uugeli/uugeliup1.png"),
+			love.graphics.newImage("uugeli/uugeliup2.png")
+		},
+		down = {
+			love.graphics.newImage("uugeli/uugelidown1.png"),
+			love.graphics.newImage("uugeli/uugelidown2.png")
+		},
+		left = {
+			love.graphics.newImage("uugeli/uugelileft1.png"),
+			love.graphics.newImage("uugeli/uugelileft2.png")
+		},
+		right = {
+			love.graphics.newImage("uugeli/uugeliright1.png"),
+			love.graphics.newImage("uugeli/uugeliright2.png")
+		}
+	},
 	velocity = Vector2:new(),
-	acceleration = 100
+	acceleration = Vector2:new(),
+	current_frame = 1,
+	time_util_next_frame = 0.1
 }
 Enemy.__index = Enemy
+
+function Enemy:getPosition()
+	return Vector2:new{x = self.collider.x, y = self.collider.y}
+end
 
 
 function randomFloat(min, max)
@@ -203,6 +236,9 @@ function love.load()
 
 	bullets = {}
 
+	enemies = {}
+	newEnemy()
+
 	seeds = 0
 
 	shoot_sound = love.audio.newSource("blowgun.mp3", "stream")
@@ -237,12 +273,18 @@ function love.keypressed(key, scancode, isrepeat)
 end
 
 function newMelon()
-	melon = TextureRect:fromImagePath("melone.png")
+	local melon = TextureRect:fromImagePath("melone.png")
 	melon.follow_camera = false
 	melon:mul(0.1)
 	local dist = 500
 	melon:centerTo(math.random(-dist, dist), math.random(-dist, dist))
 	table.insert(melons, melon)
+end
+
+function newEnemy()
+	local enemy = Enemy:new{}
+
+	table.insert(enemies, enemy)
 end
 
 function playChompSound()
@@ -315,6 +357,10 @@ function love.update(dt)
 		if bullet.distance_traveled > bullet.max_distance_traveled then
 			table.remove(bullets, i)
 		end
+	end
+
+	for i, enemy in pairs(enemies) do
+		enemy.acceleration = enemy:getPosition():directionTo() -- kakka
 	end
 
 	just_pressed = {}
