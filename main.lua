@@ -299,6 +299,8 @@ function love.load()
 	player_y = 200
 	player_speed = 200
 
+	player_dead = false
+
 	camera_x = player_x
 	camera_y = player_y
 
@@ -379,7 +381,8 @@ end
 
 function love.update(dt)
 	time_since_last_shot = time_since_last_shot + dt
-
+	
+	if player_dead then return end
 	if (love.keyboard.isDown("w")) then
 		player_y = player_y - player_speed * dt
 	end
@@ -397,15 +400,15 @@ function love.update(dt)
 		time_since_last_shot = 0
 		shoot_sound:setPitch(randomFloat(1, 1.2))
 		shoot_sound:play()
-
+	
 		seeds = seeds - 1
-
+	
 		local mouse_x, mouse_y = love.mouse.getPosition()
 		local bullet = Bullet:fromImagePath("sedward.png")
 		bullet:centerToRect(player_texture)
 		bullet:mul(0.1)
 		bullet.r = math.atan2((bullet.y - (mouse_y - screen_h / 2 + camera_y)), (bullet.x - (mouse_x - screen_w / 2 + camera_x))) + math.pi
-
+	
 		table.insert(bullets, bullet)
 	end
 
@@ -463,6 +466,11 @@ function love.update(dt)
 		enemy.redness = enemy.redness - dt * 3
 		enemy.redness = math.max(0, math.min(enemy.redness, 1))
 		enemy.textureRect.color = Color:new{r = 1, g = 1 - enemy.redness, b = 1 - enemy.redness}
+
+		if enemy.collider:intersectsWithRect(player_texture) then
+			player_dead = true
+			love.audio.newSource("player_death.wav", "stream"):play()
+		end
 	end
 
 	for i, bullet in pairs(bullets) do
@@ -521,9 +529,9 @@ function love.draw()
 	player_texture:centerTo(player_x, player_y)
 	player_texture:render()
 
-	love.graphics.setColor(1, 0, 0)
+	love.graphics.setColor(0, 0, 1)
 	for _, melon in pairs(melons) do
-		if melon:intersectsWithRect(player_texture) then
+		if melon:intersectsWithRect(player_texture) and not player_dead then
 			renderTextCentered("syö", screen_w / 2, screen_h / 2)
 		end
 	end
@@ -535,4 +543,9 @@ function love.draw()
 	local mouse_x, mouse_y = love.mouse.getPosition()
 	crosshair:centerTo(mouse_x, mouse_y)
 	crosshair:render()
+
+	if player_dead then
+		love.graphics.setColor(1, 0, 0)
+		renderTextCentered("haha noob", screen_w / 2, screen_h / 2)
+	end
 end
