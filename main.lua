@@ -298,6 +298,9 @@ function love.load()
 	player_texture = TextureRect:fromImagePath("kitty.png")
 	player_texture:mul(0.25)
 
+	player_original_w = player_texture.w
+	player_original_h = player_texture.h
+
 	player_x = 200
 	player_y = 200
 	player_speed = 200
@@ -372,6 +375,9 @@ function begin()
 
 	player_dead = false
 	seeds = 0
+
+	victory_animation_t = 0
+	victory_sound = love.audio.newSource("VICTORY.wav", "static")
 end
 
 local just_pressed = {}
@@ -408,12 +414,33 @@ end
 function playChompSound()
 	local sound = chomp_sounds[math.random(1, #chomp_sounds)]
 	sound:setPitch(randomFloat(0.9, 1.1))
+	sound:stop()
 	sound:play()
+end
+
+function isAnyDown(keys)
+	for _, v in pairs(keys) do
+		if love.keyboard.isDown(v) then return true end
+	end
+	return false
 end
 
 function love.update(dt)
 	time_since_last_shot = time_since_last_shot + dt
 
+	if #enemies == 0 then
+		victory_animation_t = victory_animation_t + dt / 24
+		victory_animation_t = math.min(1, victory_animation_t)
+
+		if not victory_sound:isPlaying() then
+			victory_sound:play()
+		end
+
+		for _, sound in pairs(enemy_death_sounds) do
+			sound:stop()
+		end
+		return
+	end
 	if player_dead then
 		if justPressed("r") then
 			player_death_sound:setPitch(randomFloat(0.5, 1.5))
@@ -596,6 +623,13 @@ function love.draw()
 
 	love.graphics.setColor(1, 1, 1)
 
+	if #enemies == 0 then
+		player_texture.w = player_original_w + (screen_w - player_original_w) * victory_animation_t
+		player_texture.h = player_original_h + (screen_h - player_original_h) * victory_animation_t
+		player_texture:centerTo(player_x, player_y)
+		player_texture:render()
+		return
+	end
 	player_texture:centerTo(player_x, player_y)
 	player_texture:render()
 
