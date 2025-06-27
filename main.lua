@@ -600,13 +600,21 @@ end
 	RENDERING
 ]]
 
-function renderTextCentered(str, x, y, scale)
+function renderText(str, x, y, scale, r)
 	scale = scale or 1
+	r = r or 0
+	local text = love.graphics.newText(font, str)
+	love.graphics.draw(text, x, y, r, scale)
+end
+
+function renderTextCentered(str, x, y, scale, r)
+	scale = scale or 1
+	r = r or 0
 	local text = love.graphics.newText(font, str)
 	local w, h = text:getDimensions()
 	w = w * scale
 	h = h * scale
-	love.graphics.draw(text, x - w / 2, y - h / 2, 0, scale)
+	love.graphics.draw(text, x - w / 2, y - h / 2, r, scale)
 end
 
 function love.draw()
