@@ -147,7 +147,7 @@ end
 Bullet = RotatedTextureRect:new{
 	speed = 2000,
 	distance_traveled = 0,
-	max_distance_traveled = 3000
+	max_distance_traveled = 20000
 }
 Bullet.__index = Bullet
 
