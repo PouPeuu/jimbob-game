@@ -367,6 +367,9 @@ function begin()
 	player_y = 200
 	player_speed = 200
 
+	player_max_stamina = 5
+	player_stamina = player_max_stamina
+
 	player_dead = false
 	seeds = 0
 end
@@ -420,11 +423,25 @@ function love.update(dt)
 			goto continue
 		end
 	end
-	if (love.keyboard.isDown("lshift")) then
-		player_speed = 400
+	if not player_exhausted and love.keyboard.isDown("lshift") and isAnyDown({"w","a","s","d"}) then
+		player_speed = 800
+		player_stamina = player_stamina - dt
+		if player_stamina <= 0 then
+			player_exhausted = true
+		end
 	else
-		player_speed = 200
+		player_stamina = player_stamina + dt / 2
+		player_speed = 400
 	end
+
+	if player_exhausted then
+		player_stamina = player_stamina + dt
+		if player_stamina >= player_max_stamina then
+			player_exhausted = false
+		end
+	end
+
+	player_stamina = math.min(player_max_stamina, math.max(0, player_stamina))
 
 	if (love.keyboard.isDown("w")) then
 		player_y = player_y - player_speed * dt
@@ -611,4 +628,14 @@ function love.draw()
 		love.graphics.setColor(0, 0, 1)
 		renderTextCentered("pressings the r to restarting", screen_w / 2, screen_h / 3 * 2, 0.25)
 	end
+
+	love.graphics.setColor(0, 0, 0)
+	renderText("Seeds: "..seeds, screen_w / 20, screen_w / 20, 0.5)
+
+	if not player_exhausted then
+		love.graphics.setColor((player_max_stamina - player_stamina) / player_max_stamina, player_stamina / player_max_stamina, 0)
+	else
+		love.graphics.setColor(0, 0, 0)
+	end
+	love.graphics.rectangle("fill", screen_w - 50 - 300, 50, 300 * (player_stamina / player_max_stamina), 35)
 end
