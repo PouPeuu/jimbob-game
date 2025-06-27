@@ -286,6 +286,8 @@ function love.resize(w, h)
 end
 
 function love.load()
+	math.randomseed(os.time())
+
 	crosshair = TextureRect:fromImagePath("crossgair.png")
 	crosshair.follow_camera = true
 	crosshair.w = 25
