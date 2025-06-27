@@ -24,8 +24,34 @@ function Rect:intersectsWithRect(other)
 		self.y + self.h > other.y
 end
 
-function Rect:intersectsWithLine(x1, y1, x2, y2)
-	
+function Rect:intersectsWithLine(x1,y1, x2,y2)
+  local tmin, tmax = 0, 1
+  local dx, dy    = x2 - x1, y2 - y1
+
+  local function clip(p, q)
+    if p == 0 then
+      if q < 0 then
+        return false
+      end
+      return true
+    end
+    local t = q / p
+    if p < 0 then
+      if t > tmax then return false end
+      if t > tmin then tmin = t end
+    else
+      if t < tmin then return false end
+      if t < tmax then tmax = t end
+    end
+    return true
+  end
+
+  if not clip(    dx, x1 -   self.x) then return false end
+  if not clip(-   dx, self.x + self.w - x1) then return false end
+  if not clip(    dy, y1 -   self.y) then return false end
+  if not clip(-   dy, self.y + self.h - y1) then return false end
+
+  return true
 end
 
 function Rect:centerTo(x, y)
@@ -43,11 +69,37 @@ function Rect:mul(scalar)
 	self.h = self.h * scalar
 end
 
+function Rect:getCenter()
+	return Vector2:new{x = self.x + self.w / 2, y = self.y + self.h / 2}
+end
+
+function Rect:__tostring() 
+	return "Rect{x = "..self.x..", y = "..self.y..", w = "..self.w..", h = "..self.h.."}"
+end
+
+Color = Object:new{
+	r = 1,
+	g = 1,
+	b = 1,
+	a = 1
+}
+Color.__index = Color
+
 TextureRect = Rect:new{
 	l2dimage = NOT_FOUND,
-	follow_camera = true
+	follow_camera = false,
+	w = 100,
+	h = 100,
+	color = Color:new()
 }
 TextureRect.__index = TextureRect
+
+function TextureRect:new(o)
+	o = o or {}
+	setmetatable(o, self)
+	o.color = o.color or Color:new()
+	return o
+end
 
 function TextureRect:fromImagePath(path)
 	local l2dimage = love.graphics.newImage(path)
@@ -69,6 +121,8 @@ function TextureRect:render()
 		x = x - camera_x + screen_w / 2
 		y = y - camera_y + screen_h / 2
 	end
+
+	love.graphics.setColor(self.color.r, self.color.g, self.color.b, self.color.a)
 	love.graphics.draw(self.l2dimage, x, y, 0, self.w/iw, self.h/ih)
 end
 
@@ -85,6 +139,8 @@ function RotatedTextureRect:render()
 		x = x - camera_x + screen_w / 2
 		y = y - camera_y + screen_h / 2
 	end
+
+	love.graphics.setColor(self.color.r, self.color.g, self.color.b, self.color.a)
 	love.graphics.draw(self.l2dimage, x, y, self.r, self.w/iw, self.h/ih, iw / 2, ih / 2)
 end
 
@@ -132,7 +188,7 @@ function Vector2:getMagnitude()
 end
 
 function Vector2:angleTo(other)
-	return math.atan(other.y - self.y, other.x - self.x)
+	return math.atan2(other.y - self.y, other.x - self.x)
 end
 
 function Vector2:directionTo(other)
@@ -148,8 +204,8 @@ Enemy = Object:new{
 	collider = Rect:new{
 		x = 0,
 		y = 0,
-		w = 50,
-		h = 50
+		w = 200,
+		h = 200
 	},
 	textures = {
 		up = {
@@ -169,12 +225,32 @@ Enemy = Object:new{
 			love.graphics.newImage("uugeli/uugeliright2.png")
 		}
 	},
+	textureRect = TextureRect:new(),
 	velocity = Vector2:new(),
 	acceleration = Vector2:new(),
+	speed = 8000,
+	mass = 16,
+	drag = 0.4,
 	current_frame = 1,
-	time_util_next_frame = 0.1
+	animation_fps = 24,
+	time_until_next_frame = 1/24,
+	redness = 0
 }
 Enemy.__index = Enemy
+
+function Enemy:new(o)
+	o = o or {}
+	
+	o.collider = o.collider or Rect:new{x = Enemy.collider.x, y = Enemy.collider.y, w = Enemy.collider.w, h = Enemy.collider.h}
+	o.textureRect = o.textureRect or TextureRect:new{w = 200, h = 200}
+	o.velocity = o.velocity or Vector2:new()
+	o.acceleration = o.acceleration or Vector2:new()
+	o.animation_fps = o.animation_fps or 24
+	o.time_until_next_frame = 1 / o.animation_fps
+
+	setmetatable(o, self)
+	return o
+end
 
 function Enemy:getPosition()
 	return Vector2:new{x = self.collider.x, y = self.collider.y}
@@ -211,11 +287,12 @@ end
 
 function love.load()
 	crosshair = TextureRect:fromImagePath("crossgair.png")
+	crosshair.follow_camera = true
 	crosshair.w = 25
 	crosshair.h = 25
+	crosshair.color = Color:new{r = 0, g = 0, b = 0}
 
 	player_texture = TextureRect:fromImagePath("kitty.png")
-	player_texture.follow_camera = false
 	player_texture:mul(0.25)
 
 	player_x = 200
@@ -237,7 +314,9 @@ function love.load()
 	bullets = {}
 
 	enemies = {}
-	newEnemy()
+	for i=1,10 do
+		newEnemy()
+	end
 
 	seeds = 0
 
@@ -274,7 +353,6 @@ end
 
 function newMelon()
 	local melon = TextureRect:fromImagePath("melone.png")
-	melon.follow_camera = false
 	melon:mul(0.1)
 	local dist = 500
 	melon:centerTo(math.random(-dist, dist), math.random(-dist, dist))
@@ -283,7 +361,13 @@ end
 
 function newEnemy()
 	local enemy = Enemy:new{}
-
+	local dist = 500*10
+	enemy.collider.x = math.random(-dist, dist)
+	enemy.collider.y = math.random(-dist, dist)
+	enemy.speed = enemy.speed + math.random(-1000, 1000)
+	enemy.mass = enemy.mass + randomFloat(-2, 2)
+	enemy.drag = enemy.drag + randomFloat(-0.1, 0.1)
+	local angle = enemy.collider:getCenter():angleTo(Vector2:new{x = player_x, y = player_y})
 	table.insert(enemies, enemy)
 end
 
@@ -319,7 +403,6 @@ function love.update(dt)
 		local mouse_x, mouse_y = love.mouse.getPosition()
 		local bullet = Bullet:fromImagePath("sedward.png")
 		bullet:centerToRect(player_texture)
-		bullet.follow_camera = false
 		bullet:mul(0.1)
 		bullet.r = math.atan2((bullet.y - (mouse_y - screen_h / 2 + camera_y)), (bullet.x - (mouse_x - screen_w / 2 + camera_x))) + math.pi
 
@@ -335,7 +418,6 @@ function love.update(dt)
 			splat:mul(0.25)
 			splat:centerToRect(melon)
 			splat.r = randomFloat(0, math.pi * 2)
-			splat.follow_camera = false
 			table.insert(static_objects, splat)
 			table.remove(melons, i)
 			newMelon()
@@ -346,21 +428,63 @@ function love.update(dt)
 		end
 	end
 
+	for i, enemy in pairs(enemies) do
+		local player_pos = Vector2:new{x = player_x, y = player_y}
+		local force = enemy.collider:getCenter():directionTo(player_pos) * enemy.speed
+		enemy.acceleration = force / enemy.mass
+		enemy.velocity = enemy.velocity + enemy.acceleration * dt
+		enemy.velocity = enemy.velocity * (1 - enemy.drag * dt)
+		enemy.collider.x = enemy.collider.x + enemy.velocity.x * dt
+		enemy.collider.y = enemy.collider.y + enemy.velocity.y * dt
+		
+
+		enemy.textureRect.x = enemy.collider.x -- - enemy.textureRect.w / 2 + enemy.collider.w / 2
+		enemy.textureRect.y = enemy.collider.y -- - enemy.textureRect.h  + enemy.collider.h
+
+		local angle = enemy.collider:getCenter():angleTo(player_pos)
+		if angle < 0 then angle = angle + 2 * math.pi end
+
+		local dir
+		if angle < math.pi / 4 then dir = "right"
+		elseif angle < 3 * math.pi / 4 then dir = "down"
+		elseif angle < 5 * math.pi / 4 then dir = "left"
+		elseif angle < 7 * math.pi / 4 then dir = "up"
+		else dir = "right"
+		end
+
+		if enemy.time_until_next_frame <= 0 then
+			enemy.current_frame = enemy.current_frame + 1
+			enemy.current_frame = enemy.current_frame % #Enemy.textures[dir]
+			enemy.time_until_next_frame = 1 / enemy.animation_fps
+		end
+		enemy.time_until_next_frame = enemy.time_until_next_frame - dt
+		enemy.textureRect.l2dimage = Enemy.textures[dir][enemy.current_frame + 1]
+
+		enemy.redness = enemy.redness - dt * 3
+		enemy.redness = math.max(0, math.min(enemy.redness, 1))
+		enemy.textureRect.color = Color:new{r = 1, g = 1 - enemy.redness, b = 1 - enemy.redness}
+	end
+
 	for i, bullet in pairs(bullets) do
 		local old_x = bullet.x
 		local old_y = bullet.y
 		bullet.x = bullet.x + math.cos(bullet.r) * dt * bullet.speed
 		bullet.y = bullet.y + math.sin(bullet.r) * dt * bullet.speed
 
+		for j, enemy in pairs(enemies) do
+			if enemy.collider:intersectsWithLine(old_x, old_y, bullet.x, bullet.y) then
+				enemy.redness = enemy.redness + 0.5
+				table.remove(bullets, i)
+				goto continue
+			end
+		end
+
 		local dist = math.sqrt((bullet.x - old_x)^2 + (bullet.y - old_y)^2)
 		bullet.distance_traveled = bullet.distance_traveled + dist
 		if bullet.distance_traveled > bullet.max_distance_traveled then
 			table.remove(bullets, i)
 		end
-	end
-
-	for i, enemy in pairs(enemies) do
-		enemy.acceleration = enemy:getPosition():directionTo() -- kakka
+		::continue::
 	end
 
 	just_pressed = {}
@@ -380,8 +504,6 @@ function renderTextCentered(str, x, y, scale)
 end
 
 function love.draw()
-	love.graphics.setColor(1, 1, 1)
-	
 	for _, object in pairs(static_objects) do
 		object:render()
 	end
@@ -389,6 +511,12 @@ function love.draw()
 	for _, melon in pairs(melons) do
 		melon:render()
 	end
+
+	for _, enemy in pairs(enemies) do
+		enemy.textureRect:render()
+	end
+	
+	love.graphics.setColor(1, 1, 1)
 
 	player_texture:centerTo(player_x, player_y)
 	player_texture:render()
@@ -400,16 +528,11 @@ function love.draw()
 		end
 	end
 
-	love.graphics.setColor(1, 1, 1)
 	for _, bullet in pairs(bullets) do
 		bullet:render()
 	end
 
-	love.graphics.setColor(0, 0, 0)
 	local mouse_x, mouse_y = love.mouse.getPosition()
 	crosshair:centerTo(mouse_x, mouse_y)
 	crosshair:render()
-	love.graphics.print("Seeds: "..seeds, 0, 0)
-
-	love.graphics.setColor(1, 0, 0)
 end
