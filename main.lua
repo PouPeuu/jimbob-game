@@ -335,7 +335,7 @@ function love.load()
 		enemy_death_sounds[i] = love.audio.newSource("vihollinenkuolee/"..v, "static")
 	end
 
-	rpm = 60 * 4
+	rpm = 60 * 8
 	time_since_last_shot = 0
 
 	love.mouse.setVisible(false)
