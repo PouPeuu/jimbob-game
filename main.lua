@@ -385,6 +385,12 @@ function love.update(dt)
 	time_since_last_shot = time_since_last_shot + dt
 	
 	if player_dead then return end
+	if (love.keyboard.isDown("lshift")) then
+		player_speed = 400
+	else
+		player_speed = 200
+	end
+
 	if (love.keyboard.isDown("w")) then
 		player_y = player_y - player_speed * dt
 	end
