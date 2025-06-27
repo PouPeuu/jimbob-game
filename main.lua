@@ -340,6 +340,16 @@ function love.load()
 
 	love.mouse.setVisible(false)
 	love.graphics.setBackgroundColor(1, 1, 1)
+
+	epics = {}
+	current_epic = 1
+	loadEpics()
+end
+
+function loadEpics()
+	for line in love.filesystem.lines("epics.txt") do
+		table.insert(epics, line)
+	end
 end
 
 function begin()
@@ -503,6 +513,7 @@ function love.update(dt)
 		if enemy.collider:intersectsWithRect(player_texture) then
 			player_dead = true
 			player_death_sound:play()
+			current_epic = math.random(1, #epics)
 		end
 	end
 
@@ -588,7 +599,15 @@ function love.draw()
 
 	if player_dead then
 		love.graphics.setColor(1, 0, 0)
-		renderTextCentered("haha noob", screen_w / 2, screen_h / 2)
+		local death_text = love.graphics.newText(font, epics[current_epic])
+		local w, h = death_text:getDimensions()
+		local scale = 1
+		if w > screen_w * 0.8 then
+			scale = screen_w * 0.8 / w
+		end
+		w = w * scale
+		love.graphics.draw(death_text, screen_w / 2 - w / 2, screen_h / 2 - h / 2, 0, scale)
+
 		love.graphics.setColor(0, 0, 1)
 		renderTextCentered("pressings the r to restarting", screen_w / 2, screen_h / 3 * 2, 0.25)
 	end
