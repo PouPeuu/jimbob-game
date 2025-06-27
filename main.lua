@@ -323,6 +323,8 @@ function love.load()
 	shoot_sound = love.audio.newSource("blowgun.mp3", "stream")
 	shoot_sound:setVolume(1.2)
 
+	player_death_sound = love.audio.newSource("player_death.wav", "static")
+
 	chomp_sounds = {}
 	for i, v in pairs(love.filesystem.getDirectoryItems("chomps")) do
 		chomp_sounds[i] = love.audio.newSource("chomps/"..v, "static")
@@ -384,9 +386,9 @@ function newEnemy()
 	local dist = 500*10
 	enemy.collider.x = math.random(-dist, dist)
 	enemy.collider.y = math.random(-dist, dist)
-	enemy.speed = enemy.speed + math.random(-1000, 1000)
-	enemy.mass = enemy.mass + randomFloat(-2, 2)
-	enemy.drag = enemy.drag + randomFloat(-0.1, 0.1)
+	enemy.speed = enemy.speed + math.random(-2000, 2000)
+	enemy.mass = enemy.mass + randomFloat(-3, 3)
+	enemy.drag = enemy.drag + randomFloat(-0.2, 0.2)
 	table.insert(enemies, enemy)
 end
 
@@ -401,6 +403,8 @@ function love.update(dt)
 
 	if player_dead then
 		if justPressed("r") then
+			player_death_sound:setPitch(randomFloat(0.5, 1.5))
+			player_death_sound:stop()
 			begin()
 		else
 			goto continue
@@ -498,7 +502,7 @@ function love.update(dt)
 
 		if enemy.collider:intersectsWithRect(player_texture) then
 			player_dead = true
-			love.audio.newSource("player_death.wav", "stream"):play()
+			player_death_sound:play()
 		end
 	end
 
@@ -514,7 +518,7 @@ function love.update(dt)
 				enemy.redness = enemy.redness + 0.5
 				if enemy.health <= 0 then
 					local sound = enemy_death_sounds[math.random(1, #enemy_death_sounds)]
-					sound:setPitch(randomFloat(0.9, 1.1))
+					sound:setPitch(randomFloat(0.25, 1.75))
 					sound:play()
 					table.remove(enemies, j)
 				end
