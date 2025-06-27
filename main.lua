@@ -486,6 +486,7 @@ function love.update(dt)
 	if love.mouse.isDown(1) and seeds > 0 and time_since_last_shot >= 60 / rpm then
 		time_since_last_shot = 0
 		shoot_sound:setPitch(randomFloat(1, 1.2))
+		shoot_sound:stop()
 		shoot_sound:play()
 
 		seeds = seeds - 1
