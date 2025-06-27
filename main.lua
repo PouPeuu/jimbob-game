@@ -73,7 +73,7 @@ function Rect:getCenter()
 	return Vector2:new{x = self.x + self.w / 2, y = self.y + self.h / 2}
 end
 
-function Rect:__tostring() 
+function Rect:__tostring()
 	return "Rect{x = "..self.x..", y = "..self.y..", w = "..self.w..", h = "..self.h.."}"
 end
 
@@ -234,13 +234,14 @@ Enemy = Object:new{
 	current_frame = 1,
 	animation_fps = 24,
 	time_until_next_frame = 1/24,
-	redness = 0
+	redness = 0,
+	health = 3
 }
 Enemy.__index = Enemy
 
 function Enemy:new(o)
 	o = o or {}
-	
+
 	o.collider = o.collider or Rect:new{x = Enemy.collider.x, y = Enemy.collider.y, w = Enemy.collider.w, h = Enemy.collider.h}
 	o.textureRect = o.textureRect or TextureRect:new{w = 200, h = 200}
 	o.velocity = o.velocity or Vector2:new()
@@ -311,29 +312,25 @@ function love.load()
 	font = love.graphics.newFont(100, "normal", love.graphics.getDPIScale())
 
 	melons = {}
-	newMelon()
-
 	static_objects = {}
-
 	bullets = {}
-
 	enemies = {}
-	for i=1,10 do
-		newEnemy()
-	end
 
 	seeds = 0
+
+	begin()
 
 	shoot_sound = love.audio.newSource("blowgun.mp3", "stream")
 	shoot_sound:setVolume(1.2)
 
-	chomp_sounds = {
-		 "1.mp3",
-		 "2.mp3"
-	}
+	chomp_sounds = {}
+	for i, v in pairs(love.filesystem.getDirectoryItems("chomps")) do
+		chomp_sounds[i] = love.audio.newSource("chomps/"..v, "static")
+	end
 
-	for i, v in pairs(chomp_sounds) do
-		chomp_sounds[i] = love.audio.newSource("chomps/"..v, "stream")
+	enemy_death_sounds = {}
+	for i, v in pairs(love.filesystem.getDirectoryItems("vihollinenkuolee")) do
+		enemy_death_sounds[i] = love.audio.newSource("vihollinenkuolee/"..v, "static")
 	end
 
 	rpm = 60 * 4
@@ -341,6 +338,25 @@ function love.load()
 
 	love.mouse.setVisible(false)
 	love.graphics.setBackgroundColor(1, 1, 1)
+end
+
+function begin()
+	melons = {}
+	newMelon()
+	static_objects = {}
+	bullets = {}
+	enemies = {}
+
+	for _=1,10 do
+		newEnemy()
+	end
+
+	player_x = 200
+	player_y = 200
+	player_speed = 200
+
+	player_dead = false
+	seeds = 0
 end
 
 local just_pressed = {}
@@ -371,7 +387,6 @@ function newEnemy()
 	enemy.speed = enemy.speed + math.random(-1000, 1000)
 	enemy.mass = enemy.mass + randomFloat(-2, 2)
 	enemy.drag = enemy.drag + randomFloat(-0.1, 0.1)
-	local angle = enemy.collider:getCenter():angleTo(Vector2:new{x = player_x, y = player_y})
 	table.insert(enemies, enemy)
 end
 
@@ -383,8 +398,14 @@ end
 
 function love.update(dt)
 	time_since_last_shot = time_since_last_shot + dt
-	
-	if player_dead then return end
+
+	if player_dead then
+		if justPressed("r") then
+			begin()
+		else
+			goto continue
+		end
+	end
 	if (love.keyboard.isDown("lshift")) then
 		player_speed = 400
 	else
@@ -408,15 +429,15 @@ function love.update(dt)
 		time_since_last_shot = 0
 		shoot_sound:setPitch(randomFloat(1, 1.2))
 		shoot_sound:play()
-	
+
 		seeds = seeds - 1
-	
+
 		local mouse_x, mouse_y = love.mouse.getPosition()
 		local bullet = Bullet:fromImagePath("sedward.png")
 		bullet:centerToRect(player_texture)
 		bullet:mul(0.1)
 		bullet.r = math.atan2((bullet.y - (mouse_y - screen_h / 2 + camera_y)), (bullet.x - (mouse_x - screen_w / 2 + camera_x))) + math.pi
-	
+
 		table.insert(bullets, bullet)
 	end
 
@@ -439,7 +460,7 @@ function love.update(dt)
 		end
 	end
 
-	for i, enemy in pairs(enemies) do
+	for _, enemy in pairs(enemies) do
 		local player_pos = Vector2:new{x = player_x, y = player_y}
 		local force = enemy.collider:getCenter():directionTo(player_pos) * enemy.speed
 		enemy.acceleration = force / enemy.mass
@@ -447,7 +468,7 @@ function love.update(dt)
 		enemy.velocity = enemy.velocity * (1 - enemy.drag * dt)
 		enemy.collider.x = enemy.collider.x + enemy.velocity.x * dt
 		enemy.collider.y = enemy.collider.y + enemy.velocity.y * dt
-		
+
 
 		enemy.textureRect.x = enemy.collider.x -- - enemy.textureRect.w / 2 + enemy.collider.w / 2
 		enemy.textureRect.y = enemy.collider.y -- - enemy.textureRect.h  + enemy.collider.h
@@ -489,7 +510,14 @@ function love.update(dt)
 
 		for j, enemy in pairs(enemies) do
 			if enemy.collider:intersectsWithLine(old_x, old_y, bullet.x, bullet.y) then
+				enemy.health = enemy.health - 1
 				enemy.redness = enemy.redness + 0.5
+				if enemy.health <= 0 then
+					local sound = enemy_death_sounds[math.random(1, #enemy_death_sounds)]
+					sound:setPitch(randomFloat(0.9, 1.1))
+					sound:play()
+					table.remove(enemies, j)
+				end
 				table.remove(bullets, i)
 				goto continue
 			end
@@ -504,6 +532,8 @@ function love.update(dt)
 	end
 
 	just_pressed = {}
+
+	::continue::
 end
 
 --[[
@@ -531,7 +561,7 @@ function love.draw()
 	for _, enemy in pairs(enemies) do
 		enemy.textureRect:render()
 	end
-	
+
 	love.graphics.setColor(1, 1, 1)
 
 	player_texture:centerTo(player_x, player_y)
@@ -555,5 +585,7 @@ function love.draw()
 	if player_dead then
 		love.graphics.setColor(1, 0, 0)
 		renderTextCentered("haha noob", screen_w / 2, screen_h / 2)
+		love.graphics.setColor(0, 0, 1)
+		renderTextCentered("pressings the r to restarting", screen_w / 2, screen_h / 3 * 2, 0.25)
 	end
 end
