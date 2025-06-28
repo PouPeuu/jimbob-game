@@ -60,8 +60,8 @@ function Rect:centerTo(x, y)
 end
 
 function Rect:centerToRect(other)
-	self.x = other.x + other.w / 2
-	self.y = other.y + other.h / 2
+	self.x = other.x + other.w / 2 - self.w / 2
+	self.y = other.y + other.h / 2 - self.h / 2
 end
 
 function Rect:mul(scalar)
@@ -338,6 +338,11 @@ function love.load()
 		enemy_death_sounds[i] = love.audio.newSource("vihollinenkuolee/"..v, "static")
 	end
 
+	deadpeople = {}
+	for i, v in pairs(love.filesystem.getDirectoryItems("deadpeople")) do
+		deadpeople[i] = love.graphics.newImage("deadpeople/"..v)
+	end
+
 	rpm = 60 * 8
 	time_since_last_shot = 0
 
@@ -402,12 +407,12 @@ end
 
 function newEnemy()
 	local enemy = Enemy:new{}
-	local dist = 500*10
+	local dist = 7500
 	enemy.collider.x = math.random(-dist, dist)
 	enemy.collider.y = math.random(-dist, dist)
-	enemy.speed = enemy.speed + math.random(-2000, 2000)
-	enemy.mass = enemy.mass + randomFloat(-3, 3)
-	enemy.drag = enemy.drag + randomFloat(-0.2, 0.2)
+	enemy.speed = enemy.speed + math.random(-3000, 3000)
+	enemy.mass = enemy.mass + randomFloat(-4, 4)
+	enemy.drag = enemy.drag + randomFloat(-0.3, 0.3)
 	table.insert(enemies, enemy)
 end
 
@@ -493,8 +498,8 @@ function love.update(dt)
 
 		local mouse_x, mouse_y = love.mouse.getPosition()
 		local bullet = Bullet:fromImagePath("sedward.png")
-		bullet:centerToRect(player_texture)
 		bullet:mul(0.1)
+		bullet:centerToRect(player_texture)
 		bullet.r = math.atan2((bullet.y - (mouse_y - screen_h / 2 + camera_y)), (bullet.x - (mouse_x - screen_w / 2 + camera_x))) + math.pi
 
 		table.insert(bullets, bullet)
@@ -576,6 +581,14 @@ function love.update(dt)
 					local sound = enemy_death_sounds[math.random(1, #enemy_death_sounds)]
 					sound:setPitch(randomFloat(0.25, 1.75))
 					sound:play()
+
+					local deadperson = TextureRect:new{
+						l2dimage = deadpeople[math.random(1, #deadpeople)],
+						w = 200,
+						h = 200
+					}
+					deadperson:centerToRect(enemy.textureRect)
+					table.insert(static_objects, deadperson)
 					table.remove(enemies, j)
 				end
 				table.remove(bullets, i)
