@@ -582,10 +582,11 @@ function love.update(dt)
 					sound:setPitch(randomFloat(0.25, 1.75))
 					sound:play()
 
-					local deadperson = TextureRect:new{
+					local deadperson = RotatedTextureRect:new{
 						l2dimage = deadpeople[math.random(1, #deadpeople)],
 						w = 200,
-						h = 200
+						h = 200,
+						r = randomFloat(0, math.pi*2)
 					}
 					deadperson:centerToRect(enemy.textureRect)
 					table.insert(static_objects, deadperson)
